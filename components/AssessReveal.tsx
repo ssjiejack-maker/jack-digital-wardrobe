@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import type { Assessment } from "@/lib/anthropic";
+import type { Assessment } from "@/lib/openai";
 import { useRevealSequence } from "@/hooks/useRevealSequence";
 
 const VERDICT_DOT: Record<string, string> = {
