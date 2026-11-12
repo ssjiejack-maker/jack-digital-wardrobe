@@ -98,6 +98,8 @@ You create your own databases - this kit ships with no data and no database ids.
    Connections → add your integration.
 4. Copy each database id from its Notion URL into your environment (next section).
 
+For the exact Notion database property names, integration permissions, and environment setup, follow [docs/notion-setup.md](docs/notion-setup.md).
+
 ## Deploy
 
 ### 1. Push to GitHub and import to Vercel
