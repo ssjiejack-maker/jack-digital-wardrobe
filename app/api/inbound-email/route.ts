@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractReceiptItems } from "@/lib/anthropic";
+import { extractReceiptItems } from "@/lib/openai";
 import { fetchProductMeta, upgradeImageUrl } from "@/lib/product";
 import { createItem } from "@/lib/notion";
 
