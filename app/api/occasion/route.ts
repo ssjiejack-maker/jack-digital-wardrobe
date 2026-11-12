@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listItems } from "@/lib/notion";
-import { assembleOutfits } from "@/lib/anthropic";
+import { assembleOutfits } from "@/lib/openai";
 
 export const maxDuration = 45;
 
