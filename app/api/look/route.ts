@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listItems } from "@/lib/notion";
-import { suggestLook } from "@/lib/anthropic";
+import { suggestLook } from "@/lib/openai";
 
 export const maxDuration = 30;
 
