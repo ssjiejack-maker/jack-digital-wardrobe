@@ -6,10 +6,10 @@ setting. Find-original-product has its own optional key.
 
 ## The three ways in
 
-1. **Photos** - pick a batch of garment photos. Each is read by Claude, background
-   removed, and saved. No setup.
+1. **Photos** - pick a batch of garment photos. Each is analysed by OpenAI vision,
+   background removed, and saved. No setup.
 2. **Receipt / order screenshot** - upload screenshot(s) of an order confirmation;
-   each item is pulled out (multiple screenshots count as one order). No setup.
+   each item is extracted with OpenAI (multiple screenshots count as one order). No setup.
 3. **Forward the email** - forward the order-confirmation email to your closet inbox
    and each fashion item lands in the closet automatically, with a clean product
    photo pulled from the brand's page. Needs the setup below.
@@ -27,9 +27,8 @@ without a configured secret it returns `503` and does nothing.
    Import page via `NEXT_PUBLIC_CLOSET_EMAIL`; default `closet@example.com`.)
    There is one shared inbox - the route does not yet distinguish per user.
 2. **Point an inbound-email provider at the webhook.** Any of Resend, Postmark,
-   SendGrid Inbound Parse, Mailgun, or Cloudflare Email Workers works - the route
-   accepts all of their common payload shapes. Configure the provider to POST the
-   parsed message to:
+   SendGrid Inbound Parse, Mailgun, or Cloudflare Email Workers works. Configure the
+   provider to POST the parsed message to:
    ```
    https://<your-domain>/api/inbound-email?secret=<INBOUND_EMAIL_SECRET>
    ```
@@ -38,7 +37,7 @@ without a configured secret it returns `503` and does nothing.
    value the provider sends. Any wrong or missing secret is rejected (`401`/`503`).
 
 Each email is capped at 25 items to bound the fan-out. Items come in as `Owns`
-with a "Imported from receipt" note and the price when present.
+with an "Imported from receipt" note and the price when present.
 
 ## Find the original product (`SERPAPI_KEY`, optional)
 
@@ -47,18 +46,17 @@ with a "Imported from receipt" note and the price when present.
 | Input you have | Path | Needs `SERPAPI_KEY`? |
 | --- | --- | --- |
 | A product **link** | fetch the page's `og:image`, title, price | No |
-| A **description / photo** (brand, name, colour) | Claude web search finds the page | No |
+| A **description / photo** (brand, name, colour) | OpenAI web search finds candidate listings | No |
 | Only a **hosted photo**, no link | reverse-image search (SerpAPI Google Lens) | **Yes** |
 
-So the link path and the description/photo web-search path work with no key. Only
-the photo-only reverse-image lookup needs `SERPAPI_KEY` (from serpapi.com). You can
-swap the provider with `REVERSE_IMAGE_API_URL`.
+Only the photo-only reverse-image lookup needs `SERPAPI_KEY` (from serpapi.com).
+You can swap the provider with `REVERSE_IMAGE_API_URL`.
 
 ## Environment variables (summary)
 
 | Key | When you need it |
 | --- | --- |
 | `INBOUND_EMAIL_SECRET` | to enable forwarding receipts by email |
-| `NEXT_PUBLIC_CLOSET_EMAIL` | optional; the inbox address shown on the Import page (default `closet@example.com`) |
+| `NEXT_PUBLIC_CLOSET_EMAIL` | optional; the inbox address shown on the Import page |
 | `SERPAPI_KEY` | optional; only for the photo-only reverse-image find-product path |
 | `REVERSE_IMAGE_API_URL` | optional; override the SerpAPI endpoint |
