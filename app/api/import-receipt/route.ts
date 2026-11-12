@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractReceiptItemsFromImages } from "@/lib/anthropic";
+import { extractReceiptItemsFromImages } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
