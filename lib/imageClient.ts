@@ -1,6 +1,6 @@
 "use client";
 
-// Normalize any uploaded image to a JPEG (Claude vision rejects AVIF/HEIC) and cap
+// Normalize any uploaded image to a JPEG (The vision endpoint may reject AVIF/HEIC) and cap
 // its dimensions. Crucially this also bakes EXIF orientation into the pixels, so a photo
 // shot sideways/upside-down is stored upright regardless of the source — the resulting JPEG
 // carries no orientation tag, so it renders the same everywhere (and in the bg-removal step).
