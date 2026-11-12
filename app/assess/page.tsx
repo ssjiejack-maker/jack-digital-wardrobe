@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Shell from "@/components/Shell";
-import type { Assessment } from "@/lib/anthropic";
+import type { Assessment } from "@/lib/openai";
 import { AssessReveal } from "@/components/AssessReveal";
 import { extractPaletteFromImage } from "@/lib/palette";
 import { tryOnCategory } from "@/lib/vocab";
@@ -137,7 +137,7 @@ export default function Assess() {
       const dataUrl = reader.result as string;
       const img = new Image();
       img.onload = () => {
-        // Claude accepts only jpeg/png/gif/webp — re-encode anything (AVIF, HEIC-as-rendered, etc.) to JPEG.
+        // OpenAI image input supports jpeg/png/gif/webp — re-encode anything (AVIF, HEIC-as-rendered, etc.) to JPEG.
         const maxDim = 1600;
         let { width, height } = img;
         if (Math.max(width, height) > maxDim) {
