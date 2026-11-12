@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveAssessment, saveAssessment, clearAssessment } from "@/lib/assessment";
-import { extractColorAssessment } from "@/lib/anthropic";
+import { extractColorAssessment } from "@/lib/openai";
 import { DEFAULT_ASSESSMENT } from "@/lib/profile";
 
 export const runtime = "nodejs";
