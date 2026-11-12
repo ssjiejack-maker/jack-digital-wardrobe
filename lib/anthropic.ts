@@ -1,7 +1,73 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { STYLE_PROFILE, DEFAULT_ASSESSMENT, type ColorAssessment } from "./profile";
 import type { WardrobeItem } from "./notion";
 import { CATEGORIES, CATEGORY_HINT, COLOURS, DESIGNERS, FABRICS, OCCASIONS } from "./vocab";
+
+/**
+ * OpenAI Responses API adapter for the existing wardrobe AI workflows.
+ * Keeps the feature functions' text/JSON contract stable while moving all
+ * vision and web-search requests off Anthropic.
+ */
+async function createOpenAIMessage(apiKey: string, params: any): Promise<{ content: { type: "text"; text: string }[] }> {
+  const input = (params.messages || []).map((message: any) => {
+    const parts = typeof message.content === "string"
+      ? [{ type: "input_text", text: message.content }]
+      : (message.content || []).map((part: any) => {
+          if (part.type === "image") {
+            const mediaType = part.source?.media_type || "image/jpeg";
+            return {
+              type: "input_image",
+              image_url: `data:${mediaType};base64,${part.source?.data || ""}`
+            };
+          }
+          if (part.type === "text") return { type: "input_text", text: part.text || "" };
+          return null;
+        }).filter(Boolean);
+    return { role: message.role || "user", content: parts };
+  });
+
+  const payload: any = {
+    model: params.model,
+    instructions: params.system,
+    input,
+    max_output_tokens: params.max_tokens,
+    store: false
+  };
+  if (Array.isArray(params.tools) && params.tools.length) {
+    payload.tools = params.tools.map((tool: any) =>
+      String(tool.type || "").startsWith("web_search") ? { type: "web_search" } : tool
+    );
+  }
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store"
+  });
+  const data: any = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`);
+  }
+
+  const text = (data.output || [])
+    .filter((item: any) => item.type === "message")
+    .flatMap((item: any) => item.content || [])
+    .filter((part: any) => part.type === "output_text")
+    .map((part: any) => part.text || "")
+    .join("")
+    .trim();
+
+  if (!text) {
+    throw new Error(data?.incomplete_details?.reason
+      ? `OpenAI response incomplete: ${data.incomplete_details.reason}`
+      : "OpenAI returned no text output");
+  }
+  return { content: [{ type: "text", text }] };
+}
+
 
 export type ExtractedItem = {
   name: string;
@@ -18,10 +84,10 @@ export type DetectedGarment = ExtractedItem & { frameIndex: number };
 // Vision: from a sequence of video keyframes panning a closet, list each DISTINCT item
 // once (deduping the same piece across consecutive frames), with the clearest frame index.
 export async function extractGarmentsFromFrames(frames: { base64: string; mediaType: string }[]): Promise<DetectedGarment[]> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You are cataloguing a wardrobe from a sequence of video frames (numbered 0 to ${frames.length - 1}) panning across a closet. Identify each DISTINCT garment, bag, or pair of shoes. The SAME item often appears across several consecutive frames — list each item ONCE. Ignore hangers, mirrors, background, body parts, and anything not a wearable item. Map attributes to the ALLOWED lists (use the closest value).
 
@@ -56,7 +122,7 @@ Respond with ONLY a JSON array (no markdown), one object per DISTINCT item:
 
 export type FoundProduct = { productUrl: string | null; imageUrl: string | null; title: string | null; price: string | null };
 
-// Find clean stock product listings for an item using Claude's web search. Combines a PHOTO of
+// Find clean stock product listings for an item using OpenAI web search. Combines a PHOTO of
 // the piece (visual ID of the exact model/colourway) with the known description, and returns
 // MULTIPLE candidate retailer listings for the SAME product — so the caller can try several
 // pages until one yields a clean, server-fetchable image (many big retailers bot-wall fetches).
@@ -65,10 +131,10 @@ export async function findStockProduct(input: {
   brand?: string; name?: string; colours?: string[]; category?: string;
   imageBase64?: string; mediaType?: string; productUrl?: string;
 }): Promise<FoundProduct[]> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const desc = [
     input.brand && input.brand !== "Other" ? `Brand: ${input.brand}` : "",
@@ -126,10 +192,10 @@ export type OccasionLook = { title: string; itemIds: string[]; why: string };
 // Styling: assemble complete outfits for an occasion from pieces she OWNS, each referenced
 // by its Notion ID, and flag gaps (what's missing for this occasion). Honours STYLE_PROFILE.
 export async function assembleOutfits(items: WardrobeItem[], occasion: string): Promise<{ looks: OccasionLook[]; gaps: string[] }> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const owned = items.filter((i) => i.status === "Owns");
   const digest = owned
@@ -170,10 +236,10 @@ Respond with ONLY JSON, no markdown:
 
 // Vision: identify a garment/bag/shoe from a photo and map attributes to the Notion vocab.
 export async function extractItem(imageBase64: string, mediaType: string): Promise<ExtractedItem> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You catalogue a fashion item from a photo for a wardrobe app. Identify the piece and map its attributes to the ALLOWED option lists EXACTLY (only use values from the lists; pick the closest match).
 
@@ -239,10 +305,10 @@ function wardrobeDigest(items: WardrobeItem[]): string {
 export type Look = { title: string; pieces: string[]; rationale: string };
 
 export async function suggestLook(items: WardrobeItem[], occasion?: string): Promise<Look> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You are the wearer's personal stylist, and you speak to them directly in the second person ("you", "your"). Compose ONE outfit using only pieces they own${occasion ? ` for: ${occasion}` : ""}. Favour their colour strategy and flattering silhouettes; never suggest a piece not in the list. Write the rationale addressing them as "you".
 
@@ -275,10 +341,10 @@ export async function assessPhoto(
   items: WardrobeItem[],
   userNote?: string
 ): Promise<Assessment> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You are the wearer's personal stylist writing their private styling notes, and you address them directly in the second person ("you", "your"). Judge a garment, bag, or shoe in a photo against their styling profile and the pieces they already own. Be honest and specific, never flattering by default. Weigh colour against their colouring, cut against their body, and whether it duplicates something they have. Write every text field addressing them as "you".
 
@@ -351,10 +417,10 @@ export type ReceiptItem = {
 // Pull fashion line-items out of a forwarded purchase/receipt email (HTML or text),
 // mapping category + colours to the wardrobe vocab. Ignores shipping/tax/totals/gift cards.
 export async function extractReceiptItems(emailContent: string): Promise<ReceiptItem[]> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You extract FASHION purchase line-items from a forwarded order/receipt email (HTML or text). Return ONLY clothing, shoes, bags, jewellery, and accessories. IGNORE shipping, tax, totals, discounts, gift cards, loyalty points, and anything that is not a wearable fashion item.
 
@@ -407,10 +473,10 @@ If there are no fashion items, return [].`;
 // Same as extractReceiptItems, but reads SCREENSHOT(S) of an order confirmation / receipt
 // (vision). Multiple screenshots are treated as pages of the SAME order and de-duplicated.
 export async function extractReceiptItemsFromImages(images: { base64: string; mediaType: string }[]): Promise<ReceiptItem[]> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You extract FASHION purchase line-items from SCREENSHOT(S) of an order confirmation or receipt. Return ONLY clothing, shoes, bags, jewellery, and accessories. IGNORE shipping, tax, totals, discounts, gift cards, loyalty points, addresses, and anything that is not a wearable fashion item. The screenshots may be different parts of the SAME order — combine them and never list the same item twice.
 
@@ -458,10 +524,10 @@ export async function extractColorAssessment(
   imageBase64: string,
   mediaType: string
 ): Promise<ColorAssessment> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+  const client = { messages: { create: (params: any) => createOpenAIMessage(key, params) } };
+  const model = process.env.OPENAI_MODEL || "claude-sonnet-4-6";
 
   const system = `You are a professional seasonal colour analyst. From the supplied image — which may be a colour-analysis result sheet, a draping swatch fan, or a clear, well-lit photo of a person — produce a structured personal colour assessment. Infer the season and palette as a trained analyst would. Use real, usable hex values for every swatch. Be decisive but honest; if the image is a weak basis, still give your best reasoned assessment.
 
