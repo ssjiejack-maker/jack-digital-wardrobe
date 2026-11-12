@@ -38,7 +38,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <MobileNav />
       <footer className="border-t border-line mt-16 pb-16 sm:pb-0">
         <p className="text-center py-8 text-[10px] tracking-luxe uppercase text-graphite">
-          Private styling companion · Built with Claude · Synced with Notion
+          Private styling companion · Powered by OpenAI · Synced with Notion
         </p>
       </footer>
     </div>
