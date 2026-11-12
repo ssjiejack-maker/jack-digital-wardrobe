@@ -53,7 +53,7 @@ If that works for you, it is a complete, working foundation. Make it yours.
 **Style**
 - **Palette** - your personal colour analysis (season, best colours, neutrals, metals,
   patterns). **Upload your own** colour analysis and the page rebuilds around it (below).
-- **Assess** - upload a photo of something you're eyeing; Claude returns a verdict, how the
+- **Assess** - upload a photo of something you're eyeing; OpenAI returns a verdict, how the
   colour reads on you, how the cut suits you, what you own that pairs with it, and a duplicate heads-up.
 - **Salon** - hair try-on: upload a selfie, pick a style or colour, and see a rendered look
   (via Replicate). Save favourites into your Looks diary.
@@ -79,7 +79,7 @@ replace it with your own in one of two ways:
 
 1. **Upload (recommended)** - on the Palette page, click *Upload your colour analysis* and
    give it a photo of your professional colour-analysis result, a draping swatch fan, or a
-   clear, well-lit selfie. Claude reads it into a structured assessment, which is saved
+   clear, well-lit selfie. OpenAI reads it into a structured assessment, which is saved
    (Vercel Blob) and drives the page from then on. *Reset to example* clears it. Not sure how
    to get one? *Where do I get a colour analysis?* opens a global guide (Korean-method labs,
    in-person analysts, free DIY guides) - edit the list in [`lib/colorAnalysisOptions.ts`](lib/colorAnalysisOptions.ts).
@@ -98,6 +98,8 @@ You create your own databases - this kit ships with no data and no database ids.
    Connections → add your integration.
 4. Copy each database id from its Notion URL into your environment (next section).
 
+For the exact Notion database property names, integration permissions, and environment setup, follow [docs/notion-setup.md](docs/notion-setup.md).
+
 ## Deploy
 
 ### 1. Push to GitHub and import to Vercel
@@ -115,7 +117,7 @@ See [.env.example](.env.example) for the full list. The essentials:
 | `NOTION_TOKEN` | your integration token |
 | `NOTION_DB_ID` | your wardrobe database id |
 | `NOTION_ASSESSED_DB_ID` | "Assessed Looks" database id (Assess flow) |
-| `ANTHROPIC_API_KEY` | from console.anthropic.com (powers Assess, Occasion, colour-analysis upload) |
+| `OPENAI_API_KEY` | from platform.openai.com (powers wardrobe AI features) |
 | `APP_PASSCODE` | any passcode; gates the app |
 | `BLOB_READ_WRITE_TOKEN` | image uploads (auto-set when you add Vercel Blob) |
 | `REPLICATE_API_TOKEN` | optional; Salon hair try-on |
@@ -135,7 +137,7 @@ npm run dev                  # http://localhost:3000
 ## Notes
 - **Auth** is a single shared passcode (httpOnly cookie). Fine for a personal app; swap for
   real auth if you need more.
-- **Model** is set by `ANTHROPIC_MODEL`; change it in one place.
+- **Model** is set by `OPENAI_MODEL`; change it in one place.
 
 ## License
 MIT - see [LICENSE](LICENSE).

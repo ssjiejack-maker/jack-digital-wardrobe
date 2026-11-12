@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractGarmentsFromFrames } from "@/lib/anthropic";
+import { extractGarmentsFromFrames } from "@/lib/openai";
 
 export const maxDuration = 60;
 

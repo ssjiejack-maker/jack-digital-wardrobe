@@ -210,12 +210,14 @@ export default function Add() {
         const fd = new FormData();
         const ext = (chosen.type && chosen.type.split("/")[1]) || (useCutout && cutout ? "webp" : "jpg");
         fd.append("file", new File([chosen], `item.${ext}`, { type: chosen.type || "image/jpeg" }));
-        const up = await fetch("/api/upload", { method: "POST", body: fd }).then((r) => r.json()).catch(() => ({}));
+        const uploadResponse = await fetch("/api/upload", { method: "POST", body: fd });
+        const up = await uploadResponse.json().catch(() => ({}));
         photo = up.url || null;
-        // Resilience guard: never silently catalogue a photo-less entry after a failed upload.
-        if (!photo) {
+        // Show the server response so upload/authentication failures can be diagnosed.
+        if (!uploadResponse.ok || !photo) {
           setBusy(false);
-          setError("Your photo couldn't be saved — check your connection and try again. The piece was not added.");
+          const detail = typeof up.error === "string" ? up.error : `Upload request failed (HTTP ${uploadResponse.status}).`;
+          setError(`Photo upload failed: ${detail}. The piece was not added.`);
           return;
         }
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractItem } from "@/lib/anthropic";
+import { extractItem } from "@/lib/openai";
 
 export const maxDuration = 30;
 
