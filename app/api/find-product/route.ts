@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchProductMeta, upgradeImageUrl } from "@/lib/product";
-import { findStockProduct } from "@/lib/anthropic";
+import { findStockProduct } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ async function reverseImageSearch(imageUrl: string): Promise<string | null> {
 // Resolution order:
 //   1. productUrl     -> fetch a clean product image + title + price from that page.
 //   2. imageUrl (hosted snapshot) + SERPAPI -> reverse image search -> fetch the match's meta.
-//   3. description and/or imageBase64 -> Claude web search finds the product page (no SERPAPI),
+//   3. description and/or imageBase64 -> OpenAI web search finds the product page (no SERPAPI),
 //      then we pull the clean og:image (falling back to a direct image URL the search surfaced).
 export async function POST(req: NextRequest) {
   try {
